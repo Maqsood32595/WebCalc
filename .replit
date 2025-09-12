@@ -103,6 +103,15 @@ mode = "sequential"
 task = "shell.exec"
 args = "cd testing && npx vitest run integration/calculator-builder-comprehensive.test.tsx --config setup/vitest.config.ts --reporter=verbose"
 
+[[workflows.workflow]]
+name = "Test Age Calculator Template"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run integration/age-calculator-template.test.tsx --config setup/vitest.config.ts --reporter=verbose"
+
 [[ports]]
 localPort = 5000
 externalPort = 80

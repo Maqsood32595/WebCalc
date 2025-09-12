@@ -20,6 +20,7 @@ import PropertiesPanel from "@/components/CalculatorBuilder/PropertiesPanel";
 import CalculatorRenderer from "@/components/CalculatorRenderer";
 import { ArrowLeft, Eye, Save, Share2 } from "lucide-react";
 import type { Calculator, CalculatorField } from "@shared/schema";
+import { calculatorTemplates, loadTemplate } from '../lib/templates';
 
 export default function Builder() {
   const params = useParams();
@@ -339,6 +340,31 @@ export default function Builder() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Template Section */}
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <h3 className="font-semibold text-gray-900 mb-4">Templates</h3>
+                  <div className="space-y-2">
+                    {calculatorTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => {
+                          if (user) {
+                            const loadedTemplate = loadTemplate(template.id, user.id);
+                            setCalculator(loadedTemplate);
+                            setFields(loadedTemplate.fields || []);
+                          }
+                        }}
+                        className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                        data-testid={`template-${template.id}`}
+                      >
+                        <div className="font-medium text-sm text-gray-900">{template.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">{template.description}</div>
+                        <div className="text-xs text-blue-600 mt-1">{template.category}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Component Palette */}
                 <ComponentPalette onFieldAdd={handleFieldAdd} />
