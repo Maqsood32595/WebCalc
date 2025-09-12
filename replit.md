@@ -44,15 +44,13 @@ Preferred communication style: Simple, everyday language.
 - **Styling System**: Customizable themes and styling options for calculator appearance
 
 ### Payment Integration
-- **Primary Provider**: Stripe for subscription management and one-time payments
-- **Secondary Provider**: PayPal for alternative payment processing
+- **Primary Provider**: PayPal for subscription management and one-time payments
 - **Monetization**: Support for paid calculators and premium subscriptions
 
 ## External Dependencies
 
 ### Payment Services
-- **Stripe**: Subscription billing and payment processing with React Stripe.js integration
-- **PayPal**: Alternative payment method using PayPal Server SDK
+- **PayPal**: Payment processing and subscription billing using PayPal Server SDK
 
 ### Database & Infrastructure
 - **Neon Database**: Serverless PostgreSQL hosting with connection pooling

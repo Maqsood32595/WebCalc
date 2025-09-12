@@ -297,7 +297,7 @@ export default function Landing() {
               Simple, Transparent Pricing
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Start free and scale as you grow. All plans include Stripe integration.
+              Start free and scale as you grow. All plans include PayPal integration.
             </p>
           </div>
           
