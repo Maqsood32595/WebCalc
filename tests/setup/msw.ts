@@ -1,6 +1,6 @@
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
-import type { Calculator, User } from '@shared/schema';
+import type { Calculator, User } from '../../shared/schema';
 
 // Mock data
 const mockUser: User = {
