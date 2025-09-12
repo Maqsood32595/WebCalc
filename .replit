@@ -71,7 +71,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd testing && npx vitest run unit integration --config setup/vitest.config.ts"
+args = "cd testing && npx vitest run --config setup/vitest.config.ts"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

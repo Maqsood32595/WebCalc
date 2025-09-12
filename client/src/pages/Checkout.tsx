@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -40,16 +39,16 @@ const CheckoutForm = () => {
           <div className="text-3xl font-bold text-primary mb-2">$29.00</div>
           <p className="text-muted-foreground">Pro Plan - Monthly Subscription</p>
         </div>
-        
-        <PayPalButton 
+
+        <PayPalButton
           amount="29.00"
           currency="USD"
           intent="CAPTURE"
         />
-        
+
         <div className="text-center">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => window.location.href = '/dashboard'}
             className="mt-4"
             data-testid="button-cancel-checkout"
@@ -81,6 +80,11 @@ export default function Checkout() {
     }
   }, [user, authLoading, toast]);
 
+  // PayPal integration - no environment variables required for basic setup
+  useEffect(() => {
+    console.log("Checkout component initialized with PayPal integration");
+  }, []);
+
   if (authLoading || !user) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-background">
@@ -100,7 +104,7 @@ export default function Checkout() {
               Unlock unlimited calculators, remove branding, and access premium features.
             </p>
           </div>
-          
+
           <CheckoutForm />
         </div>
       </main>
