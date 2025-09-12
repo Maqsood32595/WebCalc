@@ -44,9 +44,13 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
 
   const evaluateFormula = (formula: string, fieldValues: Record<string, any>) => {
     try {
-      // Date helper functions for age calculations
+      // Enhanced date helper functions for age calculations
       const dateHelpers = {
+        // Current date functions
         today: () => new Date(),
+        now: () => new Date(),
+        
+        // Date parsing functions
         date: (dateString: string) => {
           const parsed = new Date(dateString);
           if (isNaN(parsed.getTime())) {
@@ -54,19 +58,74 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           }
           return parsed;
         },
+        
+        // Age calculation functions
         yearsBetween: (date1: Date, date2: Date) => {
-          const diffTime = Math.abs(date2.getTime() - date1.getTime());
-          return Math.floor(diffTime / (365.25 * 24 * 60 * 60 * 1000));
+          const older = date1 < date2 ? date1 : date2;
+          const newer = date1 < date2 ? date2 : date1;
+          
+          let years = newer.getFullYear() - older.getFullYear();
+          const monthDiff = newer.getMonth() - older.getMonth();
+          
+          if (monthDiff < 0 || (monthDiff === 0 && newer.getDate() < older.getDate())) {
+            years--;
+          }
+          
+          return years;
         },
+        
         monthsBetween: (date1: Date, date2: Date) => {
-          const diffTime = Math.abs(date2.getTime() - date1.getTime());
-          return Math.floor(diffTime / (30.44 * 24 * 60 * 60 * 1000));
+          const older = date1 < date2 ? date1 : date2;
+          const newer = date1 < date2 ? date2 : date1;
+          
+          let months = (newer.getFullYear() - older.getFullYear()) * 12;
+          months += newer.getMonth() - older.getMonth();
+          
+          if (newer.getDate() < older.getDate()) {
+            months--;
+          }
+          
+          return months;
         },
+        
         daysBetween: (date1: Date, date2: Date) => {
           const diffTime = Math.abs(date2.getTime() - date1.getTime());
           return Math.floor(diffTime / (24 * 60 * 60 * 1000));
         },
-        Math: Math, // Allow Math functions
+        
+        // Age in specific units from birth date to today
+        ageInYears: (birthDate: Date) => {
+          return dateHelpers.yearsBetween(birthDate, new Date());
+        },
+        
+        ageInMonths: (birthDate: Date) => {
+          return dateHelpers.monthsBetween(birthDate, new Date());
+        },
+        
+        ageInDays: (birthDate: Date) => {
+          return dateHelpers.daysBetween(birthDate, new Date());
+        },
+        
+        // Date component extraction
+        getYear: (date: Date) => date.getFullYear(),
+        getMonth: (date: Date) => date.getMonth() + 1, // 1-based month
+        getDay: (date: Date) => date.getDate(),
+        
+        // Date formatting
+        formatDate: (date: Date, format = 'MM/DD/YYYY') => {
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = date.getFullYear();
+          
+          return format
+            .replace('MM', month)
+            .replace('DD', day)
+            .replace('YYYY', year.toString())
+            .replace('YY', year.toString().slice(-2));
+        },
+        
+        // Math functions for calculations
+        Math: Math,
       };
 
       // Replace field IDs with their values in the formula
@@ -174,7 +233,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
       // Track the calculation if it's a published calculator
       if (calculator.isPublished && calculator.id) {
         try {
-          await apiRequest("POST", "/api/stripe/webhook", {
+          await apiRequest("POST", "/api/paypal/webhook", {
             type: 'calculator_usage',
             data: {
               object: {
@@ -209,15 +268,14 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
     if (!calculator.price) return;
 
     try {
-      const response = await apiRequest("POST", "/api/create-payment-intent", {
+      const response = await apiRequest("POST", "/api/paypal/create-payment", {
         amount: calculator.price,
         calculatorId: calculator.id,
       });
       
-      const { clientSecret } = await response.json();
+      const { paymentId, approvalUrl } = await response.json();
       
-      // In a real implementation, you would redirect to a proper Stripe checkout
-      // For now, we'll simulate successful payment
+      // Simulate successful payment for demo
       toast({
         title: "Payment processed",
         description: "Payment successful! Calculating your result...",
