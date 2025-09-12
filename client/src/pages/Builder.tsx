@@ -352,6 +352,9 @@ export default function Builder() {
                           if (user) {
                             const loadedTemplate = loadTemplate(template.id, user.id);
                             setCalculator(loadedTemplate);
+                            if (loadedTemplate.fields) {
+                              setCalculator(prev => ({ ...prev, fields: loadedTemplate.fields }));
+                            }
                           }
                         }}
                         className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
