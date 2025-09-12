@@ -168,7 +168,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
       await performCalculation();
       
     } catch (error) {
-      if (isUnauthorizedError(error)) {
+      if (isUnauthorizedError(error as Error)) {
         toast({
           title: "Unauthorized",
           description: "You are logged out. Logging in again...",
@@ -362,7 +362,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
         )}
 
         {/* Webcalc branding for free tier */}
-        {!user || user.subscriptionStatus === 'free' ? (
+        {!user || (user as any).subscriptionStatus === 'free' ? (
           <div className="text-center pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground">
               Powered by{' '}

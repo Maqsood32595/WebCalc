@@ -301,7 +301,7 @@ export default function Builder() {
                       <Label htmlFor="requires-payment">Requires Payment</Label>
                       <Switch
                         id="requires-payment"
-                        checked={calculator.requiresPayment}
+                        checked={calculator.requiresPayment || false}
                         onCheckedChange={(checked) => setCalculator({...calculator, requiresPayment: checked})}
                         data-testid="switch-requires-payment"
                       />
