@@ -20,6 +20,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
   const [result, setResult] = useState<string | number>('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [error, setError] = useState<string | null>(null); // State for displaying errors
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
 
@@ -40,6 +41,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
 
   const handleInputChange = (fieldId: string, value: any) => {
     setValues(prev => ({ ...prev, [fieldId]: value }));
+    setError(null); // Clear error when input changes
   };
 
   const evaluateFormula = (formula: string, fieldValues: Record<string, any>) => {
@@ -49,7 +51,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
         // Current date functions
         today: () => new Date(),
         now: () => new Date(),
-        
+
         // Date parsing functions
         date: (dateString: string) => {
           const parsed = new Date(dateString);
@@ -58,79 +60,79 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           }
           return parsed;
         },
-        
+
         // Age calculation functions
         yearsBetween: (date1: Date, date2: Date) => {
           const older = date1 < date2 ? date1 : date2;
           const newer = date1 < date2 ? date2 : date1;
-          
+
           let years = newer.getFullYear() - older.getFullYear();
           const monthDiff = newer.getMonth() - older.getMonth();
-          
+
           if (monthDiff < 0 || (monthDiff === 0 && newer.getDate() < older.getDate())) {
             years--;
           }
-          
+
           return years;
         },
-        
+
         monthsBetween: (date1: Date, date2: Date) => {
           const older = date1 < date2 ? date1 : date2;
           const newer = date1 < date2 ? date2 : date1;
-          
+
           let months = (newer.getFullYear() - older.getFullYear()) * 12;
           months += newer.getMonth() - older.getMonth();
-          
+
           if (newer.getDate() < older.getDate()) {
             months--;
           }
-          
+
           return months;
         },
-        
+
         daysBetween: (date1: Date, date2: Date) => {
           const diffTime = Math.abs(date2.getTime() - date1.getTime());
           return Math.floor(diffTime / (24 * 60 * 60 * 1000));
         },
-        
+
         // Age in specific units from birth date to today
         ageInYears: (birthDate: Date) => {
           return dateHelpers.yearsBetween(birthDate, new Date());
         },
-        
+
         ageInMonths: (birthDate: Date) => {
           return dateHelpers.monthsBetween(birthDate, new Date());
         },
-        
+
         ageInDays: (birthDate: Date) => {
           return dateHelpers.daysBetween(birthDate, new Date());
         },
-        
+
         // Date component extraction
         getYear: (date: Date) => date.getFullYear(),
         getMonth: (date: Date) => date.getMonth() + 1, // 1-based month
         getDay: (date: Date) => date.getDate(),
-        
+
         // Date formatting
         formatDate: (date: Date, format = 'MM/DD/YYYY') => {
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
           const year = date.getFullYear();
-          
+
           return format
             .replace('MM', month)
             .replace('DD', day)
             .replace('YYYY', year.toString())
             .replace('YY', year.toString().slice(-2));
         },
-        
+
         // Math functions for calculations
         Math: Math,
       };
 
       // Replace field IDs with their values in the formula
       let processedFormula = formula;
-      
+
       Object.entries(fieldValues).forEach(([fieldId, value]) => {
         // Handle different value types properly
         let processedValue: string;
@@ -149,7 +151,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
         } else {
           processedValue = '""'; // Empty string for empty values
         }
-        
+
         processedFormula = processedFormula.replace(new RegExp(`\\b${fieldId}\\b`, 'g'), processedValue);
       });
 
@@ -173,15 +175,16 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
       const contextValues = Object.values(safeContext);
       const evalFunction = new Function(...contextKeys, `"use strict"; return (${processedFormula})`);
       const result = evalFunction(...contextValues);
-      
+
       // Handle different result types
       if (typeof result === 'string') return result;
       if (typeof result === 'number') return isNaN(result) ? 0 : result;
       if (result instanceof Date) return result.toLocaleDateString();
-      
+
       return result?.toString() || 0;
     } catch (error) {
       console.error('Formula evaluation error:', error);
+      setError('Error: ' + (error as Error).message); // Set error state
       return 'Error: ' + (error as Error).message;
     }
   };
@@ -193,6 +196,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
       .map(field => field.label);
 
     if (missingFields.length > 0) {
+      setError(`Please fill in: ${missingFields.join(', ')}`); // Set error state
       toast({
         title: "Missing required fields",
         description: `Please fill in: ${missingFields.join(', ')}`,
@@ -224,7 +228,8 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
 
   const performCalculation = async () => {
     setIsCalculating(true);
-    
+    setError(null); // Clear previous errors
+
     try {
       // Evaluate the formula
       const calculatedResult = evaluateFormula(calculator.formula || '', values);
@@ -272,18 +277,18 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
         amount: calculator.price,
         calculatorId: calculator.id,
       });
-      
+
       const { paymentId, approvalUrl } = await response.json();
-      
+
       // Simulate successful payment for demo
       toast({
         title: "Payment processed",
         description: "Payment successful! Calculating your result...",
       });
-      
+
       setShowPayment(false);
       await performCalculation();
-      
+
     } catch (error) {
       if (isUnauthorizedError(error as Error)) {
         toast({
@@ -296,7 +301,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
         }, 500);
         return;
       }
-      
+
       toast({
         title: "Payment failed",
         description: "There was an error processing your payment.",
@@ -317,9 +322,10 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             value={value}
             onChange={(e) => handleInputChange(field.id, e.target.value)}
             data-testid={`input-${field.id}`}
+            required={field.required} // Ensure required attribute is set
           />
         );
-      
+
       case 'number':
         return (
           <Input
@@ -330,9 +336,10 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             max={field.validation?.max}
             onChange={(e) => handleInputChange(field.id, parseFloat(e.target.value) || 0)}
             data-testid={`input-${field.id}`}
+            required={field.required} // Ensure required attribute is set
           />
         );
-      
+
       case 'select':
         return (
           <select
@@ -347,7 +354,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             ))}
           </select>
         );
-      
+
       case 'checkbox':
         return (
           <label className="flex items-center space-x-2 cursor-pointer">
@@ -361,7 +368,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             <span>{field.label}</span>
           </label>
         );
-      
+
       case 'result':
         return (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -374,7 +381,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             </div>
           </div>
         );
-      
+
       default:
         return <div>Unknown field type: {field.type}</div>;
     }
@@ -441,24 +448,27 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         <div className="space-y-4">
-          {calculator.fields.map((field) => (
-            <div key={field.id} className="space-y-2">
-              {field.type !== 'checkbox' && field.type !== 'result' && (
-                <Label className="text-sm font-medium">
+          {calculator.fields?.map((field) => {
+            if (field.type === 'result') return null;
+
+            return (
+              <div key={field.id} className="space-y-2">
+                <Label 
+                  htmlFor={field.id} 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
                   {field.label}
                   {field.required && <span className="text-red-500 ml-1">*</span>}
                 </Label>
-              )}
-              {renderField(field)}
-            </div>
-          ))}
-        </div>
+                {renderField(field)}
+              </div>
+            );
+          })}
 
-        {calculator.fields.some(f => f.type !== 'result') && (
-          <Button
+          <Button 
             onClick={handleCalculate}
             disabled={isCalculating}
             className="w-full gradient-primary text-white hover:shadow-lg transition-all py-3 text-lg font-semibold"
@@ -476,7 +486,28 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
               </>
             )}
           </Button>
-        )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="text-red-700">{error}</div>
+            </div>
+          )}
+
+          {calculator.fields?.filter(f => f.type === 'result').map((field) => (
+            <div 
+              key={field.id}
+              className="bg-green-50 border border-green-200 rounded-lg p-4"
+            >
+              <h3 className="font-semibold text-green-800 mb-2">{field.label}</h3>
+              <div 
+                className="text-2xl font-bold text-green-700"
+                data-testid={`text-result`}
+              >
+                {result || '--'}
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Webcalc branding for free tier */}
         {!user || (user as any).subscriptionStatus === 'free' ? (

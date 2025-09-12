@@ -121,31 +121,50 @@ export default function Builder() {
   };
 
   const handleFieldAdd = (field: CalculatorField) => {
+    // Find a good position for the new field
+    const existingFields = calculator.fields || [];
+    let yPosition = 20;
+
+    if (existingFields.length > 0) {
+      const maxY = Math.max(...existingFields.map(f => f.position.y));
+      yPosition = maxY + 80; // Add some spacing
+    }
+
     const newField = {
       ...field,
-      id: Date.now().toString(),
-      position: { x: 50, y: (calculator.fields?.length || 0) * 100 + 50 }
+      position: { x: 20, y: yPosition }
     };
-    setCalculator({
-      ...calculator,
-      fields: [...(calculator.fields || []), newField]
-    });
+
+    setCalculator(prev => ({
+      ...prev,
+      fields: [...(prev.fields || []), newField]
+    }));
+
+    // Auto-select the new field
+    setSelectedField(newField);
   };
 
   const handleFieldUpdate = (fieldId: string, updates: Partial<CalculatorField>) => {
-    setCalculator({
-      ...calculator,
-      fields: calculator.fields?.map(field => 
+    setCalculator(prev => ({
+      ...prev,
+      fields: (prev.fields || []).map(field =>
         field.id === fieldId ? { ...field, ...updates } : field
-      ) || []
-    });
+      )
+    }));
+
+    // Update selected field if it's the one being updated
+    if (selectedField?.id === fieldId) {
+      setSelectedField(prev => prev ? { ...prev, ...updates } : null);
+    }
   };
 
   const handleFieldDelete = (fieldId: string) => {
-    setCalculator({
-      ...calculator,
-      fields: calculator.fields?.filter(field => field.id !== fieldId) || []
-    });
+    setCalculator(prev => ({
+      ...prev,
+      fields: (prev.fields || []).filter(field => field.id !== fieldId)
+    }));
+
+    // Clear selection if deleted field was selected
     if (selectedField?.id === fieldId) {
       setSelectedField(null);
     }
@@ -210,7 +229,7 @@ export default function Builder() {
     <DragDropProvider>
       <div className="min-h-screen bg-background">
         <Header />
-        
+
         <main className="pt-20">
           {/* Builder Header */}
           <div className="bg-muted px-6 py-4 border-b border-border">

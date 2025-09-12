@@ -77,6 +77,32 @@ args = "cd testing && npx vitest run --config setup/vitest.config.ts"
 task = "shell.exec"
 args = "cd testing && npx playwright test e2e"
 
+[[workflows.workflow]]
+name = "Run Calculator Builder Tests"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run unit/calculator-builder.test.tsx --config setup/vitest.config.ts"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run integration/calculator-robustness.test.tsx --config setup/vitest.config.ts"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx playwright test e2e/complete-calculator-flows.spec.ts"
+
+[[workflows.workflow]]
+name = "Test Calculator Builder"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run integration/calculator-builder-comprehensive.test.tsx --config setup/vitest.config.ts --reporter=verbose"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
