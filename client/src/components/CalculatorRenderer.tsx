@@ -44,27 +44,86 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
 
   const evaluateFormula = (formula: string, fieldValues: Record<string, any>) => {
     try {
+      // Date helper functions for age calculations
+      const dateHelpers = {
+        today: () => new Date(),
+        date: (dateString: string) => {
+          const parsed = new Date(dateString);
+          if (isNaN(parsed.getTime())) {
+            throw new Error(`Invalid date: ${dateString}`);
+          }
+          return parsed;
+        },
+        yearsBetween: (date1: Date, date2: Date) => {
+          const diffTime = Math.abs(date2.getTime() - date1.getTime());
+          return Math.floor(diffTime / (365.25 * 24 * 60 * 60 * 1000));
+        },
+        monthsBetween: (date1: Date, date2: Date) => {
+          const diffTime = Math.abs(date2.getTime() - date1.getTime());
+          return Math.floor(diffTime / (30.44 * 24 * 60 * 60 * 1000));
+        },
+        daysBetween: (date1: Date, date2: Date) => {
+          const diffTime = Math.abs(date2.getTime() - date1.getTime());
+          return Math.floor(diffTime / (24 * 60 * 60 * 1000));
+        },
+        Math: Math, // Allow Math functions
+      };
+
       // Replace field IDs with their values in the formula
       let processedFormula = formula;
       
       Object.entries(fieldValues).forEach(([fieldId, value]) => {
-        const numValue = parseFloat(value) || 0;
-        processedFormula = processedFormula.replace(new RegExp(`\\b${fieldId}\\b`, 'g'), numValue.toString());
+        // Handle different value types properly
+        let processedValue: string;
+        if (typeof value === 'string' && value.trim() !== '') {
+          // For date strings, wrap in quotes
+          if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            processedValue = `"${value}"`;
+          } else {
+            const numValue = parseFloat(value);
+            processedValue = isNaN(numValue) ? `"${value}"` : numValue.toString();
+          }
+        } else if (typeof value === 'number') {
+          processedValue = value.toString();
+        } else if (typeof value === 'boolean') {
+          processedValue = value.toString();
+        } else {
+          processedValue = '""'; // Empty string for empty values
+        }
+        
+        processedFormula = processedFormula.replace(new RegExp(`\\b${fieldId}\\b`, 'g'), processedValue);
       });
 
-      // Basic math operations safety check
-      if (!/^[0-9+\-*/.() ]+$/.test(processedFormula)) {
+      // Enhanced safety check - allow letters for function names and basic operators
+      if (!/^[a-zA-Z0-9+\-*/.(),"' ]+$/.test(processedFormula)) {
         throw new Error('Invalid formula characters');
       }
 
-      // Evaluate the expression
-      // Note: In production, you'd want to use a proper math expression parser for security
-      const result = Function(`"use strict"; return (${processedFormula})`)();
+      // Evaluate with safe context including date helpers
+      const safeContext = {
+        ...dateHelpers,
+        console: undefined,
+        window: undefined,
+        document: undefined,
+        eval: undefined,
+        Function: undefined,
+      };
+
+      // Create function with safe context
+      const contextKeys = Object.keys(safeContext);
+      const contextValues = Object.values(safeContext);
+      const evalFunction = new Function(...contextKeys, `"use strict"; return (${processedFormula})`);
+      const result = evalFunction(...contextValues);
       
-      return isNaN(result) ? 0 : result;
+      // Handle different result types
+      if (typeof result === 'string') return result;
+      if (typeof result === 'number') return isNaN(result) ? 0 : result;
+      if (result instanceof Date) return result.toLocaleDateString();
+      
+      return result?.toString() || 0;
     } catch (error) {
       console.error('Formula evaluation error:', error);
-      return 'Error';
+      return 'Error: ' + (error as Error).message;
     }
   };
 
