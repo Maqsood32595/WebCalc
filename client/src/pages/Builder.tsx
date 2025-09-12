@@ -19,7 +19,7 @@ import Canvas from "@/components/CalculatorBuilder/Canvas";
 import PropertiesPanel from "@/components/CalculatorBuilder/PropertiesPanel";
 import CalculatorRenderer from "@/components/CalculatorRenderer";
 import { ArrowLeft, Eye, Save, Share2 } from "lucide-react";
-import type { Calculator, CalculatorField } from "@shared/schema";
+import type { Calculator, CalculatorField as Field } from "@shared/schema";
 import { calculatorTemplates, loadTemplate } from '../lib/templates';
 
 export default function Builder() {
@@ -40,7 +40,7 @@ export default function Builder() {
     price: 0,
   });
 
-  const [selectedField, setSelectedField] = useState<CalculatorField | null>(null);
+  const [selectedField, setSelectedField] = useState<Field | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   // Redirect if not authenticated
@@ -121,7 +121,7 @@ export default function Builder() {
     saveCalculatorMutation.mutate(updatedCalculator);
   };
 
-  const handleFieldAdd = (field: CalculatorField) => {
+  const handleFieldAdd = (field: Field) => {
     // Find a good position for the new field
     const existingFields = calculator.fields || [];
     let yPosition = 20;
@@ -131,7 +131,7 @@ export default function Builder() {
       yPosition = maxY + 80; // Add some spacing
     }
 
-    const newField = {
+    const newField: Field = {
       ...field,
       position: { x: 20, y: yPosition }
     };
@@ -145,7 +145,7 @@ export default function Builder() {
     setSelectedField(newField);
   };
 
-  const handleFieldUpdate = (fieldId: string, updates: Partial<CalculatorField>) => {
+  const handleFieldUpdate = (fieldId: string, updates: Partial<Field>) => {
     setCalculator(prev => ({
       ...prev,
       fields: (prev.fields || []).map(field =>
