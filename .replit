@@ -37,6 +37,46 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Run Integration Tests"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run integration --config setup/vitest.config.ts"
+
+[[workflows.workflow]]
+name = "Run E2E Tests"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx playwright test e2e"
+
+[[workflows.workflow]]
+name = "Run Unit Tests"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run unit --config setup/vitest.config.ts"
+
+[[workflows.workflow]]
+name = "Run All Tests"
+author = 43702182
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx vitest run unit integration --config setup/vitest.config.ts"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx playwright test e2e"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
