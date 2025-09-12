@@ -1,0 +1,123 @@
+ Getting Started
+Step 1: Access the Calculator Builder
+Sign in to your Webcalc account (use the "Sign In with Replit" button)
+Go to your Dashboard
+Click "Create New Calculator" button
+You'll be redirected to the Builder interface
+⚙️ Step 2: Set Up Calculator Basic Information
+In the left sidebar under "Calculator Settings":
+
+Name: Change from "Untitled Calculator" to "Age Calculator"
+Description: Add something like:
+Calculate your exact age in years, months, and days. 
+Perfect for birthdays, age verification, or just curiosity!
+Payment Settings:
+Leave "Requires Payment" turned OFF for a free calculator
+(Or turn ON and set a price if you want to monetize it)
+🧩 Step 3: Add Input Fields
+From the Component Palette on the left, drag these fields onto the Canvas:
+
+Field 1: Birth Date Input
+Drag a "Text Input" component to the canvas
+Click on the field to select it
+In the Properties Panel (right sidebar):
+Label: "Birth Date"
+Placeholder: "MM/DD/YYYY"
+Required: Turn ON
+Field ID: Note this (e.g., "field1") - you'll use it in formulas
+Field 2: Current Date Input (Optional)
+Drag another "Text Input" component
+Properties:
+Label: "Current Date (leave empty for today)"
+Placeholder: "MM/DD/YYYY"
+Required: Turn OFF
+Field ID: Note this (e.g., "field2")
+📊 Step 4: Add Result Display Fields
+Add these "Result Display" components for showing different age calculations:
+
+Result 1: Age in Years
+Drag a "Result Display" component
+Properties:
+Label: "Your Age in Years"
+Result 2: Age in Months
+Drag another "Result Display" component
+Properties:
+Label: "Your Age in Months"
+Result 3: Age in Days
+Drag another "Result Display" component
+Properties:
+Label: "Your Age in Days"
+🔢 Step 5: Create the Age Calculation Formula
+In the Formula Editor (left sidebar), enter this JavaScript formula:
+
+// Convert date strings to Date objects
+const birthDate = new Date(field1);
+const currentDate = field2 ? new Date(field2) : new Date();
+// Calculate the difference in milliseconds
+const diffInMs = currentDate - birthDate;
+// Convert to different units
+const ageInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+const ageInMonths = Math.floor(ageInDays / 30.44); // Average days per month
+const ageInYears = Math.floor(ageInDays / 365.25); // Account for leap years
+// Return the result you want to display (modify based on which result field this is for)
+ageInYears
+Note: Since Webcalc's current formula system shows one result, you might need to create separate calculators for each unit OR modify the formula to return a combined result like:
+
+const birthDate = new Date(field1);
+const currentDate = field2 ? new Date(field2) : new Date();
+const diffInMs = currentDate - birthDate;
+const ageInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+const ageInYears = Math.floor(ageInDays / 365.25);
+const ageInMonths = Math.floor((ageInDays % 365.25) / 30.44);
+const remainingDays = ageInDays % Math.floor(30.44);
+`${ageInYears} years, ${ageInMonths} months, ${remainingDays} days`
+👀 Step 6: Test Your Calculator
+Click "Preview" button in the top toolbar
+Test with sample dates:
+Birth Date: "01/15/1990"
+Leave Current Date empty (uses today)
+Click "Calculate" to see results
+Verify the age calculation is accurate
+🎨 Step 7: Customize and Style (Optional)
+Enhanced Features You Can Add:
+Dropdown for Date Format:
+
+Add a "Select Dropdown" component
+Options: "MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"
+Label: "Date Format"
+Checkbox Options:
+
+Add "Checkbox" for "Include leap years in calculation"
+Add "Checkbox" for "Show result in different time units"
+Additional Number Inputs:
+
+"Number Input" for birth year (instead of full date)
+"Number Input" for birth month
+"Number Input" for birth day
+💾 Step 8: Save and Publish
+Click "Save" to save your calculator
+Click "Publish" to make it publicly accessible
+Click "Share" to get the shareable URL
+Your calculator is now live at: https://your-repl.replit.app/public/[calculator-id]
+🔧 Advanced Tips
+Formula Enhancements:
+Validate dates to ensure birth date isn't in the future
+Handle leap years accurately
+Add error handling for invalid date formats
+User Experience:
+Add helpful hints in field descriptions
+Use clear labels and placeholders
+Consider mobile-friendly field sizing
+Monetization Options:
+Enable payment for premium features
+Add more detailed calculations (age in hours, minutes, seconds)
+Create themed versions (zodiac age, Chinese calendar age)
+🎯 Your Age Calculator is Ready!
+Users can now:
+
+✅ Enter their birth date
+✅ Get their exact age calculation
+✅ See results in multiple formats
+✅ Share the calculator with others
+✅ Use it for free (or pay if you set a price)
+The beauty of Webcalc: No coding required, fully customizable, and instantly shareable! 🚀
