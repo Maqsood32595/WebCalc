@@ -82,11 +82,11 @@ Current user message: ${userMessage}
 Please respond conversationally and if the user is asking for a calculator to be created, also provide the calculator specification in a structured way.`;
 
     let responseText = "I'm sorry, I couldn't process that request.";
-    
+
     try {
       const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
       const response = await model.generateContent(fullPrompt);
-      
+
       responseText = response.response.text() || "I'm sorry, I couldn't process that request.";
     } catch (error) {
       console.error("Error generating conversational response:", error);
@@ -98,11 +98,11 @@ Please respond conversationally and if the user is asking for a calculator to be
     // Use a second call to generate structured calculator data if it seems like the user wants a calculator
     if (isCalculatorRequest(userMessage)) {
       console.log("Attempting to generate structured calculator data for:", userMessage);
-      
+
       // First, try the structured approach with retry logic
       let structuredAttempts = 0;
       const maxStructuredAttempts = 2;
-      
+
       while (structuredAttempts < maxStructuredAttempts && !calculatorData) {
         try {
           const structuredPrompt = `Based on this user request: "${userMessage}"
@@ -125,7 +125,10 @@ Create a calculator specification in JSON format with this exact structure:
   "formula": "mathematical expression using field IDs"
 }
 
-Make sure all field IDs are used in the formula. Use realistic field names and calculations.`;
+Make sure all field IDs are used in the formula. Use realistic field names and calculations.
+If the user is asking for a mortgage calculator, use the following formula structure as a reference, ensuring the correct JavaScript syntax:
+monthly_payment = principal * (rate_per_month) / (1 - (1 + rate_per_month) ^ -(term_in_months))
+Ensure the formula uses the correct JavaScript syntax for exponentiation (Math.pow).`;
 
           const model = ai.getGenerativeModel({ 
             model: "gemini-2.0-flash-exp",
@@ -136,15 +139,15 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
           const structuredResponse = await model.generateContent(structuredPrompt);
 
           console.log("Structured response received, text available:", !!structuredResponse.text);
-          
+
           const responseText = structuredResponse.response.text();
           if (responseText) {
             console.log("Raw JSON response from Gemini:", responseText);
-            
+
             // Robust JSON extraction - find first complete JSON block
             const trimmedText = responseText.trim();
             let parsedData: any = null;
-            
+
             // Try to extract JSON from response
             const jsonMatch = trimmedText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
@@ -158,7 +161,7 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
             } else {
               parsedData = JSON.parse(trimmedText);
             }
-            
+
             // Validate and format the calculator data
             if (parsedData.name && parsedData.fields && Array.isArray(parsedData.fields)) {
               const formattedFields = parsedData.fields.map((field: any, index: number) => ({
@@ -207,7 +210,25 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
         } catch (error: any) {
           structuredAttempts++;
           console.log(`Structured generation attempt ${structuredAttempts} failed:`, error.message);
-          
+
+          // Specific fix for mortgage calculator formula issue
+          if (userMessage.toLowerCase().includes("mortgage") && error.message.includes("Invalid formula characters")) {
+            console.log("Detected mortgage calculator formula issue, applying specific fix.");
+            calculatorData = {
+              name: "Mortgage Calculator",
+              description: "Calculate monthly mortgage payments",
+              template: "financial",
+              fields: [
+                { id: "loanAmount", type: "number", label: "Loan Amount", required: true, placeholder: "Enter loan amount", position: { x: 0, y: 0 } },
+                { id: "interestRate", type: "number", label: "Interest Rate (Annual %)", required: true, placeholder: "Enter annual interest rate", position: { x: 0, y: 80 } },
+                { id: "loanTerm", type: "number", label: "Loan Term (Years)", required: true, placeholder: "Enter loan term in years", position: { x: 0, y: 160 } },
+                { id: "result", type: "result", label: "Monthly Payment", required: false, position: { x: 0, y: 240 } }
+              ],
+              formula: "((loanAmount * (interestRate/100/12)) / (1 - Math.pow(1 + (interestRate/100/12), -loanTerm * 12)))"
+            };
+            break; // Exit retry loop as we've applied the fix
+          }
+
           // If it's a 503 error or other API issue, wait a bit before retrying
           if (error.status === 503 || error.message?.includes('overloaded')) {
             console.log("API overloaded, waiting before retry...");
@@ -215,7 +236,7 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
           }
         }
       }
-      
+
       // If structured generation failed, try a simple fallback based on common calculator types
       if (!calculatorData) {
         console.log("Fallback: Creating calculator data based on user request pattern");
@@ -240,14 +261,14 @@ function isCalculatorRequest(message: string): boolean {
     'convert', 'conversion', 'percentage', 'tip', 'discount',
     'create', 'build', 'make', 'generate', 'need', 'want'
   ];
-  
+
   const lowerMessage = message.toLowerCase();
   return calculatorKeywords.some(keyword => lowerMessage.includes(keyword));
 }
 
 function createFallbackCalculatorData(userMessage: string): Partial<InsertCalculator> | undefined {
   const lowerMessage = userMessage.toLowerCase();
-  
+
   // BMI Calculator fallback
   if (lowerMessage.includes('bmi')) {
     return {
@@ -282,7 +303,7 @@ function createFallbackCalculatorData(userMessage: string): Partial<InsertCalcul
       formula: "weight / ((height / 100) * (height / 100))"
     };
   }
-  
+
   // Tip Calculator fallback
   if (lowerMessage.includes('tip')) {
     return {

@@ -155,8 +155,8 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
         processedFormula = processedFormula.replace(new RegExp(`\\b${fieldId}\\b`, 'g'), processedValue);
       });
 
-      // Enhanced safety check - allow letters for function names and basic operators
-      if (!/^[a-zA-Z0-9+\-*/.(),"' ]+$/.test(processedFormula)) {
+      // Enhanced safety check - allow letters for function names, Math object, and basic operators
+      if (!/^[a-zA-Z0-9+\-*/.(),"' _]+$/.test(processedFormula)) {
         throw new Error('Invalid formula characters');
       }
 
