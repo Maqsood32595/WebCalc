@@ -1,13 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { insertCalculatorSchema } from "@shared/schema";
 import type { InsertCalculator, CalculatorField } from "@shared/schema";
 
 // DON'T DELETE THIS COMMENT
 // Using Gemini integration blueprint for calculator creation assistance
-// Note that the newest Gemini model series is "gemini-2.5-flash" or "gemini-2.5-pro"
+// Note that the newest Gemini model series is "gemini-2.0-flash-exp" 
 
 // This API key is from Gemini Developer API Key, not vertex AI API Key
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 interface GeminiChatResponse {
   response: string;
@@ -84,12 +84,10 @@ Please respond conversationally and if the user is asking for a calculator to be
     let responseText = "I'm sorry, I couldn't process that request.";
     
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: fullPrompt,
-      });
+      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const response = await model.generateContent(fullPrompt);
       
-      responseText = response.text || "I'm sorry, I couldn't process that request.";
+      responseText = response.response.text() || "I'm sorry, I couldn't process that request.";
     } catch (error) {
       console.error("Error generating conversational response:", error);
     }
@@ -129,36 +127,36 @@ Create a calculator specification in JSON format with this exact structure:
 
 Make sure all field IDs are used in the formula. Use realistic field names and calculations.`;
 
-          const structuredResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash", // Use the same model as conversational to avoid overload
-            config: {
-              systemInstruction: "You are a calculator specification generator. Only respond with valid JSON in the exact format requested.",
+          const model = ai.getGenerativeModel({ 
+            model: "gemini-2.0-flash-exp",
+            generationConfig: {
               responseMimeType: "application/json"
-            },
-            contents: structuredPrompt,
+            }
           });
+          const structuredResponse = await model.generateContent(structuredPrompt);
 
           console.log("Structured response received, text available:", !!structuredResponse.text);
           
-          if (structuredResponse.text) {
-            console.log("Raw JSON response from Gemini:", structuredResponse.text);
+          const responseText = structuredResponse.response.text();
+          if (responseText) {
+            console.log("Raw JSON response from Gemini:", responseText);
             
             // Robust JSON extraction - find first complete JSON block
-            const responseText = structuredResponse.text.trim();
+            const trimmedText = responseText.trim();
             let parsedData: any = null;
             
             // Try to extract JSON from response
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            const jsonMatch = trimmedText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               try {
                 parsedData = JSON.parse(jsonMatch[0]);
               } catch (parseError) {
                 console.log("Failed to parse extracted JSON:", parseError);
                 // Try parsing the entire response
-                parsedData = JSON.parse(responseText);
+                parsedData = JSON.parse(trimmedText);
               }
             } else {
-              parsedData = JSON.parse(responseText);
+              parsedData = JSON.parse(trimmedText);
             }
             
             // Validate and format the calculator data
@@ -204,7 +202,7 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
               }
             }
           } else {
-            console.log("No text in structured response, response object:", structuredResponse);
+            console.log("No text in structured response, response object:", structuredResponse.response);
           }
         } catch (error: any) {
           structuredAttempts++;

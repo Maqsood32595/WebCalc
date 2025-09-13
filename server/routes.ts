@@ -6,10 +6,10 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { generateCalculatorFromPrompt } from "./gemini";
 import { insertCalculatorSchema, insertTemplateSchema } from "@shared/schema";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize Gemini AI
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -191,11 +191,9 @@ Examples:
 - "How does BMI work?" → Only provide response
 - "Make a tip calculator" → Provide calculatorData + response`;
 
-      const result = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: fullPrompt
-      });
-      const responseText = result.response;
+      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const result = await model.generateContent(fullPrompt);
+      const responseText = result.response.text();
 
       console.log('Structured response received, text available:', !!responseText);
 
