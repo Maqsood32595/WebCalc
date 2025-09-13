@@ -24,7 +24,8 @@ export default function Dashboard() {
   // Handle calculator creation from chatbot
   const createCalculatorMutation = useMutation({
     mutationFn: async (calculatorData: Partial<InsertCalculator>) => {
-      return await apiRequest("POST", "/api/calculators", calculatorData);
+      const response = await apiRequest("POST", "/api/calculators", calculatorData);
+      return response.json();
     },
     onSuccess: (calculator) => {
       queryClient.invalidateQueries({ queryKey: ['/api/calculators'] });

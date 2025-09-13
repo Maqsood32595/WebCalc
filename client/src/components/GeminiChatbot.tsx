@@ -62,6 +62,9 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
         conversationHistory: messages,
       });
 
+      console.log("Raw Gemini API response:", response);
+      console.log("Calculator data from response:", response.calculatorData);
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -70,6 +73,7 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
         calculatorData: response.calculatorData,
       };
 
+      console.log("Assistant message with calculator data:", assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
 
       // If the response includes calculator data, offer to create it
