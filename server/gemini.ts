@@ -117,6 +117,7 @@ Create a calculator specification in JSON format with this exact structure:
 Make sure all field IDs are used in the formula. Use realistic field names and calculations.`;
 
       try {
+        console.log("Attempting to generate structured calculator data for:", userMessage);
         const structuredResponse = await ai.models.generateContent({
           model: "gemini-2.5-pro",
           config: {
@@ -156,6 +157,8 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
           contents: structuredPrompt,
         });
 
+        console.log("Structured response received, text available:", !!structuredResponse.text);
+        
         if (structuredResponse.text) {
           console.log("Raw JSON response from Gemini:", structuredResponse.text);
           
@@ -198,7 +201,7 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
             };
 
             // Add a result field if not present
-            const hasResultField = candidateData.fields.some(field => field.type === 'result');
+            const hasResultField = candidateData.fields.some((field: any) => field.type === 'result');
             if (!hasResultField) {
               candidateData.fields.push({
                 id: 'result',
@@ -219,9 +222,11 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
               // Return undefined calculatorData but keep the text response
             }
           }
+        } else {
+          console.log("No text in structured response, response object:", structuredResponse);
         }
       } catch (parseError) {
-        console.log("Could not parse structured calculator data, proceeding with text response only");
+        console.log("Could not parse structured calculator data, proceeding with text response only. Error:", parseError);
       }
     }
 
