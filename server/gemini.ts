@@ -94,7 +94,15 @@ Please respond conversationally and if the user is asking for a calculator to be
 
     // Use a second call to generate structured calculator data if it seems like the user wants a calculator
     if (isCalculatorRequest(userMessage)) {
-      const structuredPrompt = `Based on this user request: "${userMessage}"
+      console.log("Attempting to generate structured calculator data for:", userMessage);
+      
+      // First, try the structured approach with retry logic
+      let structuredAttempts = 0;
+      const maxStructuredAttempts = 2;
+      
+      while (structuredAttempts < maxStructuredAttempts && !calculatorData) {
+        try {
+          const structuredPrompt = `Based on this user request: "${userMessage}"
 
 Create a calculator specification in JSON format with this exact structure:
 {
@@ -116,117 +124,99 @@ Create a calculator specification in JSON format with this exact structure:
 
 Make sure all field IDs are used in the formula. Use realistic field names and calculations.`;
 
-      try {
-        console.log("Attempting to generate structured calculator data for:", userMessage);
-        const structuredResponse = await ai.models.generateContent({
-          model: "gemini-2.5-pro",
-          config: {
-            systemInstruction: "You are a calculator specification generator. Only respond with valid JSON in the exact format requested.",
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                description: { type: "string" },
-                template: { type: "string" },
-                fields: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      type: { type: "string" },
-                      label: { type: "string" },
-                      required: { type: "boolean" },
-                      placeholder: { type: "string" },
-                      position: {
-                        type: "object",
-                        properties: {
-                          x: { type: "number" },
-                          y: { type: "number" }
-                        }
-                      }
-                    }
-                  }
-                },
-                formula: { type: "string" }
-              },
-              required: ["name", "fields", "formula"]
-            }
-          },
-          contents: structuredPrompt,
-        });
+          const structuredResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash", // Use the same model as conversational to avoid overload
+            config: {
+              systemInstruction: "You are a calculator specification generator. Only respond with valid JSON in the exact format requested.",
+              responseMimeType: "application/json"
+            },
+            contents: structuredPrompt,
+          });
 
-        console.log("Structured response received, text available:", !!structuredResponse.text);
-        
-        if (structuredResponse.text) {
-          console.log("Raw JSON response from Gemini:", structuredResponse.text);
+          console.log("Structured response received, text available:", !!structuredResponse.text);
           
-          // Robust JSON extraction - find first complete JSON block
-          const responseText = structuredResponse.text.trim();
-          let parsedData: any = null;
-          
-          // Try to extract JSON from response
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            try {
-              parsedData = JSON.parse(jsonMatch[0]);
-            } catch (parseError) {
-              console.log("Failed to parse extracted JSON:", parseError);
-              // Try parsing the entire response
+          if (structuredResponse.text) {
+            console.log("Raw JSON response from Gemini:", structuredResponse.text);
+            
+            // Robust JSON extraction - find first complete JSON block
+            const responseText = structuredResponse.text.trim();
+            let parsedData: any = null;
+            
+            // Try to extract JSON from response
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                parsedData = JSON.parse(jsonMatch[0]);
+              } catch (parseError) {
+                console.log("Failed to parse extracted JSON:", parseError);
+                // Try parsing the entire response
+                parsedData = JSON.parse(responseText);
+              }
+            } else {
               parsedData = JSON.parse(responseText);
             }
+            
+            // Validate and format the calculator data
+            if (parsedData.name && parsedData.fields && Array.isArray(parsedData.fields)) {
+              const formattedFields = parsedData.fields.map((field: any, index: number) => ({
+                id: field.id || `field_${index}`,
+                type: field.type || "text",
+                label: field.label || `Field ${index + 1}`,
+                required: field.required !== false,
+                placeholder: field.placeholder,
+                options: field.options,
+                position: field.position || { x: index * 200, y: index * 80 }
+              }));
+
+              const candidateData = {
+                name: parsedData.name,
+                description: parsedData.description || "",
+                template: parsedData.template || "custom",
+                fields: formattedFields,
+                formula: parsedData.formula || "",
+              };
+
+              // Add a result field if not present
+              const hasResultField = candidateData.fields.some((field: any) => field.type === 'result');
+              if (!hasResultField) {
+                candidateData.fields.push({
+                  id: 'result',
+                  type: 'result',
+                  label: 'Result',
+                  required: false,
+                  position: { x: 0, y: candidateData.fields.length * 80 }
+                });
+              }
+
+              // Validate against schema before returning
+              const validationResult = insertCalculatorSchema.safeParse(candidateData);
+              if (validationResult.success) {
+                calculatorData = validationResult.data;
+                console.log("Successfully validated calculator data against schema");
+                break; // Exit retry loop on success
+              } else {
+                console.log("Calculator data validation failed:", validationResult.error);
+              }
+            }
           } else {
-            parsedData = JSON.parse(responseText);
+            console.log("No text in structured response, response object:", structuredResponse);
           }
+        } catch (error: any) {
+          structuredAttempts++;
+          console.log(`Structured generation attempt ${structuredAttempts} failed:`, error.message);
           
-          // Validate and format the calculator data
-          if (parsedData.name && parsedData.fields && Array.isArray(parsedData.fields)) {
-            const formattedFields = parsedData.fields.map((field: any, index: number) => ({
-              id: field.id || `field_${index}`,
-              type: field.type || "text",
-              label: field.label || `Field ${index + 1}`,
-              required: field.required !== false,
-              placeholder: field.placeholder,
-              options: field.options,
-              position: field.position || { x: index * 200, y: index * 80 }
-            }));
-
-            const candidateData = {
-              name: parsedData.name,
-              description: parsedData.description || "",
-              template: parsedData.template || "custom",
-              fields: formattedFields,
-              formula: parsedData.formula || "",
-            };
-
-            // Add a result field if not present
-            const hasResultField = candidateData.fields.some((field: any) => field.type === 'result');
-            if (!hasResultField) {
-              candidateData.fields.push({
-                id: 'result',
-                type: 'result',
-                label: 'Result',
-                required: false,
-                position: { x: 0, y: candidateData.fields.length * 80 }
-              });
-            }
-
-            // Validate against schema before returning
-            const validationResult = insertCalculatorSchema.safeParse(candidateData);
-            if (validationResult.success) {
-              calculatorData = validationResult.data;
-              console.log("Successfully validated calculator data against schema");
-            } else {
-              console.log("Calculator data validation failed:", validationResult.error);
-              // Return undefined calculatorData but keep the text response
-            }
+          // If it's a 503 error or other API issue, wait a bit before retrying
+          if (error.status === 503 || error.message?.includes('overloaded')) {
+            console.log("API overloaded, waiting before retry...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
-        } else {
-          console.log("No text in structured response, response object:", structuredResponse);
         }
-      } catch (parseError) {
-        console.log("Could not parse structured calculator data, proceeding with text response only. Error:", parseError);
+      }
+      
+      // If structured generation failed, try a simple fallback based on common calculator types
+      if (!calculatorData) {
+        console.log("Fallback: Creating calculator data based on user request pattern");
+        calculatorData = createFallbackCalculatorData(userMessage);
       }
     }
 
@@ -250,4 +240,115 @@ function isCalculatorRequest(message: string): boolean {
   
   const lowerMessage = message.toLowerCase();
   return calculatorKeywords.some(keyword => lowerMessage.includes(keyword));
+}
+
+function createFallbackCalculatorData(userMessage: string): Partial<InsertCalculator> | undefined {
+  const lowerMessage = userMessage.toLowerCase();
+  
+  // BMI Calculator fallback
+  if (lowerMessage.includes('bmi')) {
+    return {
+      name: "BMI Calculator",
+      description: "Calculate Body Mass Index",
+      template: "health",
+      fields: [
+        {
+          id: "weight",
+          type: "number",
+          label: "Weight (kg)",
+          required: true,
+          placeholder: "Enter your weight",
+          position: { x: 0, y: 0 }
+        },
+        {
+          id: "height",
+          type: "number", 
+          label: "Height (cm)",
+          required: true,
+          placeholder: "Enter your height",
+          position: { x: 0, y: 80 }
+        },
+        {
+          id: "result",
+          type: "result",
+          label: "BMI Result",
+          required: false,
+          position: { x: 0, y: 160 }
+        }
+      ],
+      formula: "weight / ((height / 100) * (height / 100))"
+    };
+  }
+  
+  // Tip Calculator fallback
+  if (lowerMessage.includes('tip')) {
+    return {
+      name: "Tip Calculator",
+      description: "Calculate tip amount",
+      template: "financial",
+      fields: [
+        {
+          id: "bill",
+          type: "number",
+          label: "Bill Amount ($)",
+          required: true,
+          placeholder: "Enter bill amount",
+          position: { x: 0, y: 0 }
+        },
+        {
+          id: "tipPercent",
+          type: "number",
+          label: "Tip Percentage (%)",
+          required: true,
+          placeholder: "Enter tip percentage",
+          position: { x: 0, y: 80 }
+        },
+        {
+          id: "result",
+          type: "result",
+          label: "Tip Amount",
+          required: false,
+          position: { x: 0, y: 160 }
+        }
+      ],
+      formula: "bill * (tipPercent / 100)"
+    };
+  }
+
+  // Percentage Calculator fallback
+  if (lowerMessage.includes('percentage') || lowerMessage.includes('percent')) {
+    return {
+      name: "Percentage Calculator",
+      description: "Calculate percentages",
+      template: "math",
+      fields: [
+        {
+          id: "value",
+          type: "number",
+          label: "Value",
+          required: true,
+          placeholder: "Enter the value",
+          position: { x: 0, y: 0 }
+        },
+        {
+          id: "percent",
+          type: "number",
+          label: "Percentage (%)",
+          required: true,
+          placeholder: "Enter percentage",
+          position: { x: 0, y: 80 }
+        },
+        {
+          id: "result",
+          type: "result",
+          label: "Result",
+          required: false,
+          position: { x: 0, y: 160 }
+        }
+      ],
+      formula: "value * (percent / 100)"
+    };
+  }
+
+  return undefined;
 }
