@@ -24,6 +24,7 @@ export default function Dashboard() {
   // Handle calculator creation from chatbot
   const createCalculatorMutation = useMutation({
     mutationFn: async (calculatorData: Partial<InsertCalculator>) => {
+      console.log("Creating calculator with data:", calculatorData);
       const response = await apiRequest("POST", "/api/calculators", calculatorData);
       return response.json();
     },
@@ -37,6 +38,7 @@ export default function Dashboard() {
       setLocation(`/builder/${calculator.id}`);
     },
     onError: (error) => {
+      console.error("Calculator creation error:", error);
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -57,6 +59,15 @@ export default function Dashboard() {
   });
 
   const handleCreateCalculatorFromChat = (calculatorData: Partial<InsertCalculator>) => {
+    console.log("Handling calculator creation from chat:", calculatorData);
+    if (!calculatorData.name || !calculatorData.fields || calculatorData.fields.length === 0) {
+      toast({
+        title: "Invalid Calculator Data",
+        description: "The calculator data is incomplete. Please try asking the AI to create a calculator again.",
+        variant: "destructive",
+      });
+      return;
+    }
     createCalculatorMutation.mutate(calculatorData);
   };
 

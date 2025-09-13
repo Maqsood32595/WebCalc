@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Bot, User, Send, Sparkles, Calculator, Loader2 } from "lucide-react";
-import type { InsertCalculator, CalculatorField } from "@shared/schema";
+import type { InsertCalculator } from "@shared/schema";
 
 interface Message {
   id: string;
@@ -57,27 +57,28 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
     setIsLoading(true);
 
     try {
-      const response: any = await apiRequest('POST', '/api/gemini/chat', {
+      const response = await apiRequest('POST', '/api/gemini/chat', {
         message: input.trim(),
         conversationHistory: messages,
       });
 
-      console.log("Raw Gemini API response:", response);
-      console.log("Calculator data from response:", response.calculatorData);
+      const responseData = await response.json();
+      console.log("Raw Gemini API response:", responseData);
+      console.log("Calculator data from response:", responseData.calculatorData);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.response,
+        content: responseData.response || "I received your message but couldn't generate a response.",
         timestamp: new Date(),
-        calculatorData: response.calculatorData,
+        calculatorData: responseData.calculatorData,
       };
 
       console.log("Assistant message with calculator data:", assistantMessage);
       setMessages(prev => [...prev, assistantMessage]);
 
       // If the response includes calculator data, offer to create it
-      if (response.calculatorData && onCreateCalculator) {
+      if (responseData.calculatorData && onCreateCalculator) {
         toast({
           title: "Calculator specification ready!",
           description: "I've prepared a calculator based on your request. You can create it now or continue the conversation.",
@@ -156,7 +157,7 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
                   }`}>
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     
-                    {message.calculatorData && (
+                    {message.calculatorData && message.calculatorData.name && message.calculatorData.fields && (
                       <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
@@ -172,6 +173,9 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
                             {message.calculatorData.description && (
                               <p><strong>Description:</strong> {message.calculatorData.description}</p>
                             )}
+                            {message.calculatorData.template && (
+                              <p><strong>Category:</strong> {message.calculatorData.template}</p>
+                            )}
                           </div>
                         </div>
 
@@ -182,7 +186,7 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
                           data-testid="button-create-suggested-calculator"
                         >
                           <Calculator className="w-4 h-4 mr-2" />
-                          {isLoading ? 'Creating Calculator...' : 'Create This Calculator'}
+                          Create This Calculator
                         </Button>
                       </div>
                     )}

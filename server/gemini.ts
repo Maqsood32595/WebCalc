@@ -9,6 +9,11 @@ import type { InsertCalculator, CalculatorField } from "@shared/schema";
 // This API key is from Gemini Developer API Key, not vertex AI API Key
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
+interface GeminiChatResponse {
+  response: string;
+  calculatorData?: Partial<InsertCalculator>;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
