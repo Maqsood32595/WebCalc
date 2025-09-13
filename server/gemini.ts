@@ -4,7 +4,9 @@ import type { InsertCalculator, CalculatorField } from "@shared/schema";
 
 // DON'T DELETE THIS COMMENT
 // Using Gemini integration blueprint for calculator creation assistance
+// Note that the newest Gemini model series is "gemini-2.5-flash" or "gemini-2.5-pro"
 
+// This API key is from Gemini Developer API Key, not vertex AI API Key
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 interface Message {
@@ -74,15 +76,15 @@ Current user message: ${userMessage}
 
 Please respond conversationally and if the user is asking for a calculator to be created, also provide the calculator specification in a structured way.`;
 
-    const conversationalModel = ai.getGenerativeModel({
-      model: "gemini-2.5-flash"
-    });
-    
     let responseText = "I'm sorry, I couldn't process that request.";
     
     try {
-      const result = await conversationalModel.generateContent(fullPrompt);
-      responseText = result.response.text() || "I'm sorry, I couldn't process that request.";
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: fullPrompt,
+      });
+      
+      responseText = response.text || "I'm sorry, I couldn't process that request.";
     } catch (error) {
       console.error("Error generating conversational response:", error);
     }
@@ -115,9 +117,10 @@ Create a calculator specification in JSON format with this exact structure:
 Make sure all field IDs are used in the formula. Use realistic field names and calculations.`;
 
       try {
-        const model = ai.getGenerativeModel({
+        const structuredResponse = await ai.models.generateContent({
           model: "gemini-2.5-pro",
-          generationConfig: {
+          config: {
+            systemInstruction: "You are a calculator specification generator. Only respond with valid JSON in the exact format requested.",
             responseMimeType: "application/json",
             responseSchema: {
               type: "object",
@@ -149,16 +152,15 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
               },
               required: ["name", "fields", "formula"]
             }
-          }
+          },
+          contents: structuredPrompt,
         });
 
-        const structuredResponse = await model.generateContent(structuredPrompt);
-
-        if (structuredResponse.response.text()) {
-          console.log("Raw JSON response from Gemini:", structuredResponse.response.text());
+        if (structuredResponse.text) {
+          console.log("Raw JSON response from Gemini:", structuredResponse.text);
           
           // Robust JSON extraction - find first complete JSON block
-          const responseText = structuredResponse.response.text().trim();
+          const responseText = structuredResponse.text.trim();
           let parsedData: any = null;
           
           // Try to extract JSON from response
