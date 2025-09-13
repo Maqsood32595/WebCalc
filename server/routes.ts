@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
+import { generateCalculatorFromPrompt } from "./gemini";
 import { insertCalculatorSchema, insertTemplateSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -117,6 +118,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting calculator:", error);
       res.status(500).json({ message: "Failed to delete calculator" });
+    }
+  });
+
+  // Gemini chat route
+  app.post('/api/gemini/chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const { message, conversationHistory } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const response = await generateCalculatorFromPrompt(message, conversationHistory || []);
+      res.json(response);
+    } catch (error) {
+      console.error("Error in Gemini chat:", error);
+      res.status(500).json({ message: "Failed to process chat request" });
     }
   });
 

@@ -10,15 +10,54 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/Header";
+import GeminiChatbot from "@/components/GeminiChatbot";
 import { Calculator, Eye, DollarSign, TrendingUp, Plus, Edit, Share, MoreHorizontal, Trash2 } from "lucide-react";
-import type { Calculator as CalculatorType } from "@shared/schema";
+import type { Calculator as CalculatorType, InsertCalculator } from "@shared/schema";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth() as { user: { firstName?: string } | null, isLoading: boolean };
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Handle calculator creation from chatbot
+  const createCalculatorMutation = useMutation({
+    mutationFn: async (calculatorData: Partial<InsertCalculator>) => {
+      return await apiRequest("POST", "/api/calculators", calculatorData);
+    },
+    onSuccess: (calculator) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/calculators'] });
+      toast({
+        title: "Calculator created!",
+        description: "Your AI-generated calculator has been created successfully.",
+      });
+      // Redirect to edit the new calculator
+      setLocation(`/builder/${calculator.id}`);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create calculator from AI suggestion.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateCalculatorFromChat = (calculatorData: Partial<InsertCalculator>) => {
+    createCalculatorMutation.mutate(calculatorData);
+  };
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -35,7 +74,7 @@ export default function Dashboard() {
     }
   }, [user, authLoading, toast]);
 
-  const { data: calculators = [], isLoading } = useQuery({
+  const { data: calculators = [], isLoading } = useQuery<CalculatorType[]>({
     queryKey: ['/api/calculators'],
     retry: false,
     enabled: !!user,
@@ -172,23 +211,34 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Calculator List */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Your Calculators</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Input 
-                    type="text" 
-                    placeholder="Search calculators..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-64"
-                    data-testid="input-search-calculators"
-                  />
-                </div>
-              </div>
-            </CardHeader>
+          {/* AI Assistant and Calculator List Grid */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* AI Calculator Assistant */}
+            <div className="lg:col-span-1">
+              <GeminiChatbot 
+                onCreateCalculator={handleCreateCalculatorFromChat} 
+                className="h-[500px]"
+              />
+            </div>
+
+            {/* Calculator List */}
+            <div className="lg:col-span-2">
+              <Card className="h-[500px]">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Your Calculators</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Input 
+                        type="text" 
+                        placeholder="Search calculators..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-64"
+                        data-testid="input-search-calculators"
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="space-y-4">
@@ -285,8 +335,10 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            </div>
+          </div>
         </div>
       </main>
     </div>
