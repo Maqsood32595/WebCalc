@@ -153,28 +153,33 @@ export default function GeminiChatbot({ onCreateCalculator, className = "" }: Ge
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     
                     {message.calculatorData && (
-                      <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <Calculator className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium">Calculator Specification</span>
+                            <Calculator className="w-5 h-5 text-blue-600" />
+                            <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">Calculator Ready to Create</span>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleCreateCalculator(message.calculatorData!)}
-                            className="text-xs"
-                            data-testid="button-create-suggested-calculator"
-                          >
-                            Create Calculator
-                          </Button>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          <p><strong>Name:</strong> {message.calculatorData.name}</p>
-                          <p><strong>Fields:</strong> {message.calculatorData.fields?.length || 0} inputs</p>
-                          {message.calculatorData.description && (
-                            <p><strong>Description:</strong> {message.calculatorData.description}</p>
-                          )}
+                        
+                        <div className="mb-3 p-2 bg-white dark:bg-gray-800 rounded border">
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            <p><strong>Name:</strong> {message.calculatorData.name}</p>
+                            <p><strong>Fields:</strong> {message.calculatorData.fields?.length || 0} input fields</p>
+                            {message.calculatorData.description && (
+                              <p><strong>Description:</strong> {message.calculatorData.description}</p>
+                            )}
+                          </div>
                         </div>
+
+                        <Button
+                          onClick={() => handleCreateCalculator(message.calculatorData!)}
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
+                          disabled={isLoading}
+                          data-testid="button-create-suggested-calculator"
+                        >
+                          <Calculator className="w-4 h-4 mr-2" />
+                          {isLoading ? 'Creating Calculator...' : 'Create This Calculator'}
+                        </Button>
                       </div>
                     )}
                   </div>

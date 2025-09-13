@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { insertCalculatorSchema } from "@shared/schema";
 import type { InsertCalculator, CalculatorField } from "@shared/schema";
 
 // DON'T DELETE THIS COMMENT
@@ -73,12 +74,18 @@ Current user message: ${userMessage}
 
 Please respond conversationally and if the user is asking for a calculator to be created, also provide the calculator specification in a structured way.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: fullPrompt,
+    const conversationalModel = ai.getGenerativeModel({
+      model: "gemini-2.5-flash"
     });
-
-    const responseText = response.text || "I'm sorry, I couldn't process that request.";
+    
+    let responseText = "I'm sorry, I couldn't process that request.";
+    
+    try {
+      const result = await conversationalModel.generateContent(fullPrompt);
+      responseText = result.response.text() || "I'm sorry, I couldn't process that request.";
+    } catch (error) {
+      console.error("Error generating conversational response:", error);
+    }
 
     // Try to extract calculator data if the response seems to include specifications
     let calculatorData: Partial<InsertCalculator> | undefined;
@@ -108,16 +115,65 @@ Create a calculator specification in JSON format with this exact structure:
 Make sure all field IDs are used in the formula. Use realistic field names and calculations.`;
 
       try {
-        const structuredResponse = await ai.models.generateContent({
+        const model = ai.getGenerativeModel({
           model: "gemini-2.5-pro",
-          config: {
+          generationConfig: {
             responseMimeType: "application/json",
-          },
-          contents: structuredPrompt,
+            responseSchema: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                description: { type: "string" },
+                template: { type: "string" },
+                fields: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      type: { type: "string" },
+                      label: { type: "string" },
+                      required: { type: "boolean" },
+                      placeholder: { type: "string" },
+                      position: {
+                        type: "object",
+                        properties: {
+                          x: { type: "number" },
+                          y: { type: "number" }
+                        }
+                      }
+                    }
+                  }
+                },
+                formula: { type: "string" }
+              },
+              required: ["name", "fields", "formula"]
+            }
+          }
         });
 
-        if (structuredResponse.text) {
-          const parsedData = JSON.parse(structuredResponse.text);
+        const structuredResponse = await model.generateContent(structuredPrompt);
+
+        if (structuredResponse.response.text()) {
+          console.log("Raw JSON response from Gemini:", structuredResponse.response.text());
+          
+          // Robust JSON extraction - find first complete JSON block
+          const responseText = structuredResponse.response.text().trim();
+          let parsedData: any = null;
+          
+          // Try to extract JSON from response
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsedData = JSON.parse(jsonMatch[0]);
+            } catch (parseError) {
+              console.log("Failed to parse extracted JSON:", parseError);
+              // Try parsing the entire response
+              parsedData = JSON.parse(responseText);
+            }
+          } else {
+            parsedData = JSON.parse(responseText);
+          }
           
           // Validate and format the calculator data
           if (parsedData.name && parsedData.fields && Array.isArray(parsedData.fields)) {
@@ -131,7 +187,7 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
               position: field.position || { x: index * 200, y: index * 80 }
             }));
 
-            calculatorData = {
+            const candidateData = {
               name: parsedData.name,
               description: parsedData.description || "",
               template: parsedData.template || "custom",
@@ -140,15 +196,25 @@ Make sure all field IDs are used in the formula. Use realistic field names and c
             };
 
             // Add a result field if not present
-            const hasResultField = calculatorData.fields?.some(field => field.type === 'result');
-            if (!hasResultField && calculatorData.fields) {
-              calculatorData.fields.push({
+            const hasResultField = candidateData.fields.some(field => field.type === 'result');
+            if (!hasResultField) {
+              candidateData.fields.push({
                 id: 'result',
                 type: 'result',
                 label: 'Result',
                 required: false,
-                position: { x: 0, y: calculatorData.fields.length * 80 }
+                position: { x: 0, y: candidateData.fields.length * 80 }
               });
+            }
+
+            // Validate against schema before returning
+            const validationResult = insertCalculatorSchema.safeParse(candidateData);
+            if (validationResult.success) {
+              calculatorData = validationResult.data;
+              console.log("Successfully validated calculator data against schema");
+            } else {
+              console.log("Calculator data validation failed:", validationResult.error);
+              // Return undefined calculatorData but keep the text response
             }
           }
         }
