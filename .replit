@@ -121,6 +121,15 @@ mode = "sequential"
 task = "shell.exec"
 args = "cd testing && npx vitest run integration/calculator-comprehensive-testing.test.tsx --config ./setup/vitest.config.ts --reporter=verbose"
 
+[[workflows.workflow]]
+name = "Run Calculator E2E Tests"
+author = 42269430
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd testing && npx playwright test e2e/complete-calculator-flows.spec.ts"
+
 [[ports]]
 localPort = 5000
 externalPort = 80

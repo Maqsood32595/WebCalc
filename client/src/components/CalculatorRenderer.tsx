@@ -17,7 +17,7 @@ interface CalculatorRendererProps {
 
 export default function CalculatorRenderer({ calculator }: CalculatorRendererProps) {
   const [values, setValues] = useState<Record<string, any>>({});
-  const [result, setResult] = useState<string | number>('');
+  const [result, setResult] = useState<string | number | null>('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [error, setError] = useState<string | null>(null); // State for displaying errors
@@ -44,159 +44,82 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
     setError(null); // Clear error when input changes
   };
 
-  const evaluateFormula = (formula: string, fieldValues: Record<string, any>) => {
+  const evaluateFormula = (formula: string, values: Record<string, any>) => {
     try {
-      // Enhanced date helper functions for age calculations
-      const dateHelpers = {
-        // Current date functions
-        today: () => new Date(),
-        now: () => new Date(),
+      // Handle special functions
+      if (formula.includes('ageInYears(date(')) {
+        const fieldMatch = formula.match(/ageInYears\(date\((\w+)\)\)/);
+        if (fieldMatch) {
+          const fieldValue = values[fieldMatch[1]];
+          if (!fieldValue) throw new Error('Birth date is required');
 
-        // Date parsing functions
-        date: (dateString: string) => {
-          const parsed = new Date(dateString);
-          if (isNaN(parsed.getTime())) {
-            throw new Error(`Invalid date: ${dateString}`);
-          }
-          return parsed;
-        },
+          const birthDate = new Date(fieldValue);
+          if (isNaN(birthDate.getTime())) throw new Error('Invalid date format');
 
-        // Age calculation functions
-        yearsBetween: (date1: Date, date2: Date) => {
-          const older = date1 < date2 ? date1 : date2;
-          const newer = date1 < date2 ? date2 : date1;
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
 
-          let years = newer.getFullYear() - older.getFullYear();
-          const monthDiff = newer.getMonth() - older.getMonth();
-
-          if (monthDiff < 0 || (monthDiff === 0 && newer.getDate() < older.getDate())) {
-            years--;
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
           }
 
-          return years;
-        },
-
-        monthsBetween: (date1: Date, date2: Date) => {
-          const older = date1 < date2 ? date1 : date2;
-          const newer = date1 < date2 ? date2 : date1;
-
-          let months = (newer.getFullYear() - older.getFullYear()) * 12;
-          months += newer.getMonth() - older.getMonth();
-
-          if (newer.getDate() < older.getDate()) {
-            months--;
-          }
-
-          return months;
-        },
-
-        daysBetween: (date1: Date, date2: Date) => {
-          const diffTime = Math.abs(date2.getTime() - date1.getTime());
-          return Math.floor(diffTime / (24 * 60 * 60 * 1000));
-        },
-
-        // Age in specific units from birth date to today
-        ageInYears: (birthDate: Date) => {
-          return dateHelpers.yearsBetween(birthDate, new Date());
-        },
-
-        ageInMonths: (birthDate: Date) => {
-          return dateHelpers.monthsBetween(birthDate, new Date());
-        },
-
-        ageInDays: (birthDate: Date) => {
-          return dateHelpers.daysBetween(birthDate, new Date());
-        },
-
-        // Date component extraction
-        getYear: (date: Date) => date.getFullYear(),
-        getMonth: (date: Date) => date.getMonth() + 1, // 1-based month
-        getDay: (date: Date) => date.getDate(),
-
-        // Date formatting
-        formatDate: (date: Date, format = 'MM/DD/YYYY') => {
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = date.getFullYear();
-
-          return format
-            .replace('MM', month)
-            .replace('DD', day)
-            .replace('YYYY', year.toString())
-            .replace('YY', year.toString().slice(-2));
-        },
-
-        // Math functions for calculations
-        Math: Math,
-      };
-
-      // Replace field IDs with their values in the formula
-      let processedFormula = formula;
-
-      Object.entries(fieldValues).forEach(([fieldId, value]) => {
-        // Handle different value types properly
-        let processedValue: string;
-        if (typeof value === 'string' && value.trim() !== '') {
-          // For date strings, wrap in quotes
-          if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) || value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            processedValue = `"${value}"`;
-          } else {
-            const numValue = parseFloat(value);
-            processedValue = isNaN(numValue) ? `"${value}"` : numValue.toString();
-          }
-        } else if (typeof value === 'number') {
-          processedValue = value.toString();
-        } else if (typeof value === 'boolean') {
-          processedValue = value.toString();
-        } else {
-          processedValue = '""'; // Empty string for empty values
+          return age;
         }
-
-        processedFormula = processedFormula.replace(new RegExp(`\\b${fieldId}\\b`, 'g'), processedValue);
-      });
-
-      // Enhanced safety check - allow letters for function names, Math object, and basic operators
-      if (!/^[a-zA-Z0-9+\-*/.(),"' _]+$/.test(processedFormula)) {
-        throw new Error('Invalid formula characters');
       }
 
-      // Evaluate with safe context including date helpers
-      const safeContext = {
-        ...dateHelpers,
-        console: undefined,
-        window: undefined,
-        document: undefined,
-        eval: undefined,
-        Function: undefined,
-      };
+      // Validate all required fields have values
+      Object.entries(values).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          const field = calculator.fields.find(f => f.id === key);
+          if (field?.required) {
+            throw new Error(`${field.label} is required`);
+          }
+        }
+      });
 
-      // Create function with safe context
-      const contextKeys = Object.keys(safeContext);
-      const contextValues = Object.values(safeContext);
-      const evalFunction = new Function(...contextKeys, `"use strict"; return (${processedFormula})`);
-      const result = evalFunction(...contextValues);
+      // Replace field names with values in the formula
+      let processedFormula = formula;
+      Object.entries(values).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          const regex = new RegExp(`\\b${key}\\b`, 'g');
+          processedFormula = processedFormula.replace(regex, String(value));
+        }
+      });
 
-      // Handle different result types
-      if (typeof result === 'string') return result;
-      if (typeof result === 'number') return isNaN(result) ? 0 : result;
-      if (result instanceof Date) return result.toLocaleDateString();
+      // Check for division by zero
+      if (processedFormula.includes('/ 0') || processedFormula.includes('/0')) {
+        throw new Error('Cannot divide by zero');
+      }
 
-      return result?.toString() || 0;
+      // Evaluate the formula safely
+      const result = Function(`"use strict"; return (${processedFormula})`)();
+
+      if (!isFinite(result)) {
+        throw new Error('Invalid calculation result');
+      }
+
+      return result;
     } catch (error) {
       console.error('Formula evaluation error:', error);
-      setError('Error: ' + (error as Error).message); // Set error state
-      return 'Error: ' + (error as Error).message;
+      throw error instanceof Error ? error : new Error('Invalid formula');
     }
   };
 
+
   const handleCalculate = async () => {
+    setError('');
+    setResult(null);
+
     // Validate required fields
-    const missingFields = calculator.fields
-      .filter(field => field.required && !values[field.id])
-      .map(field => field.label);
+    const requiredFields = calculator.fields.filter(field => field.required && field.type !== 'result');
+    const missingFields = requiredFields.filter(field => {
+      const value = values[field.id];
+      return !value || value === '' || (typeof value === 'string' && value.trim() === '');
+    });
 
     if (missingFields.length > 0) {
-      setError(`Please fill in: ${missingFields.join(', ')}`); // Set error state
+      setError('Please fill in all required fields');
       toast({
         title: "Missing required fields",
         description: `Please fill in: ${missingFields.join(', ')}`,
@@ -205,7 +128,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
       return;
     }
 
-    // Check if payment is required
+    // Check if payment is required and not already paid
     if (calculator.requiresPayment && !isAuthenticated) {
       toast({
         title: "Authentication required",
@@ -223,15 +146,25 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
       return;
     }
 
-    await performCalculation();
-  };
-
-  const performCalculation = async () => {
     setIsCalculating(true);
-    setError(null); // Clear previous errors
 
     try {
-      // Evaluate the formula
+      // Validate numeric fields
+      calculator.fields.forEach(field => {
+        if (field.type === 'number' && values[field.id] !== undefined && values[field.id] !== null && values[field.id] !== '') {
+          const numValue = Number(values[field.id]);
+          if (isNaN(numValue)) {
+            throw new Error(`${field.label} must be a valid number`);
+          }
+          if (field.validation?.min !== undefined && numValue < field.validation.min) {
+            throw new Error(`${field.label} must be at least ${field.validation.min}`);
+          }
+          if (field.validation?.max !== undefined && numValue > field.validation.max) {
+            throw new Error(`${field.label} must be at most ${field.validation.max}`);
+          }
+        }
+      });
+
       const calculatedResult = evaluateFormula(calculator.formula || '', values);
       setResult(calculatedResult);
 
@@ -261,9 +194,10 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
     } catch (error) {
       toast({
         title: "Calculation error",
-        description: "There was an error calculating your result.",
+        description: error instanceof Error ? error.message : 'There was an error calculating your result.',
         variant: "destructive",
       });
+      setError(error instanceof Error ? error.message : 'Error calculating result'); // Set error state for display
     } finally {
       setIsCalculating(false);
     }
@@ -322,7 +256,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             value={value}
             onChange={(e) => handleInputChange(field.id, e.target.value)}
             data-testid={`input-${field.id}`}
-            required={field.required} // Ensure required attribute is set
+            required={field.required}
           />
         );
 
@@ -336,7 +270,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             max={field.validation?.max}
             onChange={(e) => handleInputChange(field.id, parseFloat(e.target.value) || 0)}
             data-testid={`input-${field.id}`}
-            required={field.required} // Ensure required attribute is set
+            required={field.required}
           />
         );
 
@@ -374,8 +308,8 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
             <div className="text-sm text-green-600 font-medium mb-1">{field.label}</div>
             <div className="text-2xl font-bold text-green-800" data-testid="text-result">
-              {typeof result === 'number' ? 
-                (result % 1 === 0 ? result.toString() : result.toFixed(2)) : 
+              {typeof result === 'number' ?
+                (result % 1 === 0 ? result.toString() : result.toFixed(2)) :
                 result || '—'
               }
             </div>
@@ -404,7 +338,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             This calculator requires a one-time payment to access the results.
           </p>
           <div className="space-y-2">
-            <Button 
+            <Button
               className="w-full gradient-primary text-white"
               onClick={handlePayment}
               data-testid="button-pay-now"
@@ -412,8 +346,8 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
               <CreditCard className="w-4 h-4 mr-2" />
               Pay Now
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => setShowPayment(false)}
               data-testid="button-cancel-payment"
@@ -456,8 +390,8 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
 
             return (
               <div key={field.id} className="space-y-2">
-                <Label 
-                  htmlFor={field.id} 
+                <Label
+                  htmlFor={field.id}
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   {field.label}
@@ -468,7 +402,7 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
             );
           })}
 
-          <Button 
+          <Button
             onClick={handleCalculate}
             disabled={isCalculating}
             className="w-full gradient-primary text-white hover:shadow-lg transition-all py-3 text-lg font-semibold"
@@ -494,16 +428,18 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           )}
 
           {calculator.fields?.filter(f => f.type === 'result').map((field) => (
-            <div 
+            <div
               key={field.id}
               className="bg-green-50 border border-green-200 rounded-lg p-4"
             >
               <h3 className="font-semibold text-green-800 mb-2">{field.label}</h3>
-              <div 
+              <div
                 className="text-2xl font-bold text-green-700"
                 data-testid={`text-result`}
               >
-                {result || '--'}
+                {result === null ? '--' : (typeof result === 'number' ?
+                  (Number.isInteger(result) ? result.toString() : result.toFixed(2)) :
+                  result || '--')}
               </div>
             </div>
           ))}
@@ -514,8 +450,8 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           <div className="text-center pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground">
               Powered by{' '}
-              <a 
-                href="/" 
+              <a
+                href="/"
                 className="text-primary hover:underline font-semibold"
                 target="_blank"
                 rel="noopener noreferrer"
