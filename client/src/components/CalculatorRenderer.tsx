@@ -308,11 +308,11 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
             <div className="text-sm text-green-600 font-medium mb-1">{field.label}</div>
             <div className="text-2xl font-bold text-green-800" data-testid="text-result">
-              {typeof result === 'number' ?
-                (result % 1 === 0 ? result.toString() : result.toFixed(2)) :
-                result || '—'
-              }
-            </div>
+              {result === null || result === '' ? '—' : 
+                typeof result === 'number' ? 
+                  (Number.isInteger(result) ? result.toString() : result.toFixed(2)) :
+                  result
+              }</div>
           </div>
         );
 
@@ -437,10 +437,11 @@ export default function CalculatorRenderer({ calculator }: CalculatorRendererPro
                 className="text-2xl font-bold text-green-700"
                 data-testid={`text-result`}
               >
-                {result === null ? '--' : (typeof result === 'number' ?
-                  (Number.isInteger(result) ? result.toString() : result.toFixed(2)) :
-                  result || '--')}
-              </div>
+                {result === null || result === '' ? '—' : 
+                  typeof result === 'number' ? 
+                    (Number.isInteger(result) ? result.toString() : result.toFixed(2)) :
+                    result
+                }</div>
             </div>
           ))}
         </div>
